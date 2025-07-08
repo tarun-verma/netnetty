@@ -8,6 +8,13 @@ from pprint import pprint
 import dns.resolver
 import os
 
+'''
+TODO:
+- lots of cleanup and handling corner cases (like api key)
+- write some integration/unit tests
+- make it easy to pull and use
+'''
+
 # Set up gemini to generate summaries
 client = genai.Client(api_key=os.getenv("GEMINI_KEY"))
 chat = client.chats.create(

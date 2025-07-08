@@ -6,9 +6,16 @@ import json
 import re
 from pprint import pprint
 import dns.resolver
+import os
 
+# Set up gemini to generate summaries
+client = genai.Client(api_key=os.getenv("GEMINI_KEY"))
+chat = client.chats.create(
+    model="gemini-2.5-flash"
+)
 
-client = genai.Client(api_key="")
+# Set up the prompt to summarise whois data
+prompt = f"Read all the interesting information from the following WHOIS text and present a concise (at most a few sentences) summary to me with just the relevant info and what you think about it. Text:"
 
 record_types = {
     'NONE', 'A', 'NS', 'MD', 'MF', 'CNAME', 'SOA', 'MB', 'MG', 'MR', 'NULL', 'WKS', 'PTR', 'HINFO', 'MINFO', 'MX', 'TXT', 'RP', 'AFSDB', 'X25', 'ISDN', 'RT', 'NSAP', 'NSAP-PTR', 'SIG', 'KEY', 'PX', 'GPOS', 'AAAA', 'LOC', 'NXT', 'SRV', 'NAPTR', 'KX', 'CERT', 'A6', 'DNAME', 'OPT', 'APL', 'DS', 'SSHFP', 'IPSECKEY', 'RRSIG', 'NSEC', 'DNSKEY', 'DHCID', 'NSEC3', 'NSEC3PARAM', 'TLSA', 'HIP', 'CDS', 'CDNSKEY', 'CSYNC', 'SPF', 'UNSPEC', 'EUI48', 'EUI64', 'TKEY', 'TSIG', 'IXFR', 'AXFR', 'MAILB', 'MAILA', 'ANY', 'URI', 'CAA', 'TA', 'DLV'
@@ -16,25 +23,21 @@ record_types = {
 
 ipv4_pattern = re.compile(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
 
-chat = client.chats.create(
-    model="gemini-2.5-flash"
-)
-
 class NetNetty:
-    def __init__(self, hostinfo) -> None:
-        self.host = hostinfo
-        self.hostinfo = whois(hostinfo)
+    def __init__(self, host) -> None:
+        self.host = host
+        self.hostinfo = whois(host)
+        if not bool(ipv4_pattern.match(host)): self.records = dict()
 
     def get_info(self) -> Dict["str", Any]:
         self.infodict = dict()
-
         org_pattern = r"(Organization):\s*(.*)" # Use this to parse through WHOIS text, in case we can't get org name directly from whois dict
         org_name = self.hostinfo["org"]
         org_mails = self.hostinfo["emails"]
         org_ns = self.hostinfo["name_servers"]
 
         if not org_name:
-            org_name = re2.findall(org_pattern, self.hostinfo.text)[0][1]
+            org_name = re.findall(org_pattern, self.hostinfo.text)[0][1]
             if not org_name:
                 org_name = "No org name found!"
 
@@ -51,26 +54,23 @@ class NetNetty:
         return self.infodict
 
     def llm_summary(self) -> str:
-        prompt = f"Read all the interesting information from the following WHOIS text and present a one paragraph summary to me with just the relevant info and what you think about it. Here's the text:\n\n{self.hostinfo.text}"
+        query = prompt + f"\n\n{self.hostinfo.text}"
         try:
-            response = chat.send_message(prompt)
-            return response.text
-        except json.JSONDecodeError as e:
-            print(f"Error decoding JSON response from API: {e}")
-            print(f"Raw API response text: {response.text}")
-            return "None"  # Return an empty dict or handle error as appropriate
+            response = chat.send_message(query)
+            return str(response.text)
         except Exception as e:
-            print(f"An unexpected error occurred during API call: {e}")
-            return "None"
+            error = f"An unexpected error occurred during API call: {e} \n Raw API response text: {response.text}"
+            return error
 
-    def get_records(self):
+    def get_records(self) -> Dict["str", Any]:
         for record in record_types:
             try:
-                answers = dns.resolver.query(self.host, record)
+                answers = dns.resolver.resolve(self.host, record)
                 for rdata in answers:
-                    print(record, ':', rdata.to_text())
+                    self.records[record] = rdata.to_text()
             except Exception as e:
-                print(e)  # or pass
+                pass  # or pass
+        return self.records
 
 
 if __name__ == "__main__":
@@ -80,17 +80,34 @@ if __name__ == "__main__":
 
     group = parser.add_mutually_exclusive_group(required=True)
 
-    group.add_argument("-i", "--ip", help="the IP you want to look up info for")
-    group.add_argument("-host", "--hostname", help="the hostname you want to look up info for")
-    parser.add_argument("-s", "--summary", action="store_true", help="flag to enable LLM summary")
+    group.add_argument("-i", "--ip", help="the IP you want to look up info for.")
+    group.add_argument("-host", "--hostname", help="the hostname you want to look up info for.")
+    parser.add_argument("-s", "--summary", action="store_true", help="flag to enable LLM summary.")
+    parser.add_argument("-r", "--record", help="specify a particular DNS record type to look up (e.g., A, MX, NS). Requires -host | --hostname.")
+    parser.add_argument("-a", "--all", action="store_true", help="dump app DNS records for a hostname. Requires -host | --hostname.")
+
     args = parser.parse_args()
+
+    if args.record and not args.hostname:
+        parser.error("--record can only be used when --hostname is provided!")
+
+    if args.all and not args.hostname:
+        parser.error("--all can only be used when --hostname is provided!")
 
     if args.ip:
         information = NetNetty(args.ip)
         pprint(information.get_info(), indent=4, sort_dicts=False)
     elif args.hostname:
         information = NetNetty(args.hostname)
-        print(information.get_records())
+        records = information.get_records()
 
+        if args.record:
+            try:
+                value = records[args.record]
+                print(f"{args.record}: {value}")
+            except KeyError:
+                print(f"No record found for {args.record} query!")
+        if args.all:
+            pprint(records, indent=4, sort_dicts=False)
     if args.summary:
-        print(information.llm_summary())
+        pprint(information.llm_summary(), indent=4, sort_dicts=False)

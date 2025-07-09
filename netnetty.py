@@ -12,7 +12,7 @@ import os
 TODO:
 - lots of cleanup and handling corner cases (like api key)
 - write some integration/unit tests
-- make it easy to pull and use
+- to close: can be easily pulled and deployed
 '''
 
 # Set up gemini to generate summaries

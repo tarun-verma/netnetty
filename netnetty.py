@@ -171,7 +171,7 @@ if __name__ == "__main__":
         "-a",
         "--all",
         action="store_true",
-        help="dump app DNS records for a hostname. Requires -host | --hostname.",
+        help="dump all DNS records for a hostname. Requires -host | --hostname.",
     )
 
     args = parser.parse_args()

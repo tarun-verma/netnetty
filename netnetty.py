@@ -6,12 +6,16 @@ import re
 from pprint import pprint
 import dns.resolver
 import os
+import sys
+import time
+import threading
 
 """
 TODO:
 - lots of cleanup and handling corner cases (like api key)
 - write some integration/unit tests
 - to close: can be easily pulled and deployed
+- add a prompt when gemini is being queried
 """
 
 # Set up gemini to generate summaries
@@ -147,6 +151,21 @@ class NetNetty:
                 pass  # or pass
         return self.records
 
+    def _animate(self, stop_event): # helper function to make the wait for DNS record processing easier
+        """Displays a simple loading animation in the console."""
+        animation_chars = ['|', '/', '-', '\\']
+        idx = 0
+        while not stop_event.is_set():
+            char = animation_chars[idx % len(animation_chars)]
+            # \r moves the cursor to the beginning of the line
+            sys.stdout.write(f'\r{char} performing DNS lookup for all possible records...')
+            sys.stdout.flush()
+            time.sleep(0.1)
+            idx += 1
+        # Clean up the line after finishing
+        sys.stdout.write('\r' + ' ' * 25 + '\r')
+        sys.stdout.flush()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -187,15 +206,25 @@ if __name__ == "__main__":
         pprint(information.get_info(), indent=4, sort_dicts=False)
     elif args.hostname:
         information = NetNetty(args.hostname)
-        records = information.get_records()
+        stop_animation = threading.Event()
+        animation_thread = threading.Thread(target=information._animate, args=(stop_animation,), daemon=True)
+        animation_thread.start()
+        record_processing_thread = threading.Thread(target=information.get_records)
+        record_processing_thread.start()
+        record_processing_thread.join()
+        stop_animation.set()
+
+        print(f"\nLookup complete ✅\nHere are the records:")
 
         if args.record:
             try:
+                records = information.records
                 value = records[args.record]
                 print(f"{args.record}: {value}")
             except KeyError:
                 print(f"No record found for {args.record} query!")
         if args.all:
+            records = information.records
             pprint(records, indent=4, sort_dicts=False)
     if args.summary:
         pprint(information.llm_summary(), indent=4, sort_dicts=False)

@@ -1,13 +1,29 @@
-# Python-generated files
+# Python build artifacts
 __pycache__/
-*.py[oc]
+*.pyc
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+*.whl
+*.tar.gz
 
 # Virtual environments
 .venv
+venv/
+ENV/
 
 # Other files
 plan.md
+
+# Lock files (uv.lock is great for dev, but not for repo)
+# Some prefer to commit lock files, but for a library, it's often omitted.
+# Keep it if your project is an application with pinned dependencies.
+# uv.lock
+# poetry.lock
+# Pipfile.lock
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store

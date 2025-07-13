@@ -1,3 +1,7 @@
+import os
+import sys
+import time
+import threading
 import argparse
 from whois import whois
 from typing import Dict, Any
@@ -5,18 +9,6 @@ from google import genai
 import re
 from pprint import pprint
 import dns.resolver
-import os
-import sys
-import time
-import threading
-
-"""
-TODO:
-- lots of cleanup and handling corner cases (like api key)
-- write some integration/unit tests
-- to close: can be easily pulled and deployed
-- add a prompt when gemini is being queried
-"""
 
 # Set up gemini to generate summaries
 client = genai.Client(api_key=os.getenv("GEMINI_KEY"))

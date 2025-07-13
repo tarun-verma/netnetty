@@ -183,6 +183,7 @@ dependencies = [
     { name = "dnspython" },
     { name = "google-genai" },
     { name = "python-whois" },
+    { name = "requests" },
     { name = "typing" },
 ]
 
@@ -192,6 +193,7 @@ requires-dist = [
     { name = "dnspython" },
     { name = "google-genai" },
     { name = "python-whois" },
+    { name = "requests" },
     { name = "typing", specifier = ">=3.10.0.0" },
 ]
 

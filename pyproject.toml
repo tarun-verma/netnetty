@@ -1,11 +1,14 @@
 [project]
 name = "netnetty"
 version = "0.1.0"
-description = "Add your description here"
+authors = [{ name = "Tarun Verma", email = "tr.vrma@gmail.com" }]
+description = "Simple Python `whois` adjacent tool for both FQDNs and IPs, with an option LLM generated summary"
 readme = "README.md"
 requires-python = ">=3.12"
+license = { file = "LICENSE" }
 dependencies = [
     "python-whois",
+    "requests",
     "dnspython",
     "google-genai",
     "argparse>=1.4.0",

@@ -92,7 +92,6 @@ ipv4_pattern = re.compile(
     r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
 )
 
-
 class NetNetty:
     def __init__(self, host) -> None:
         self.host = host
@@ -103,20 +102,15 @@ class NetNetty:
     def get_info(self) -> Dict["str", Any]:
         self.infodict = dict()
         org_pattern = r"(Organization):\s*(.*)"  # Use this to parse through WHOIS text, in case we can't get org name directly from whois dict
-        org_name = self.hostinfo["org"]
-        org_mails = self.hostinfo["emails"]
-        org_ns = self.hostinfo["name_servers"]
 
-        if not org_name:
-            org_name = re.findall(org_pattern, self.hostinfo.text)[0][1]
-            if not org_name:
-                org_name = "No org name found!"
+        if not (org_name := self.hostinfo.get("org")):
+            if not (matches := re.findall(org_pattern, self.hostinfo.text)):
+                org_name = "None"
+            else:
+                org_name = matches[0][1]
 
-        if not org_mails:
-            org_mails = "No email addresses found!"
-
-        if not org_ns:
-            org_ns = "No name servers found!"
+        org_mails = self.hostinfo.get("emails")
+        org_ns = self.hostinfo.get("name_servers")
 
         self.infodict["Org Name"] = org_name
         self.infodict["Org Emails"] = org_mails
@@ -206,7 +200,7 @@ if __name__ == "__main__":
         record_processing_thread.join()
         stop_animation.set()
 
-        print(f"\nLookup complete ✅\nHere are the records:")
+        print("\nLookup complete ✅\nHere are the records:")
 
         if args.record:
             try:

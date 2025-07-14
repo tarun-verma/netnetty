@@ -3,8 +3,9 @@ import sys
 import time
 import threading
 import argparse
-from whois import whois
+import whois
 from typing import Dict, Any
+from types import SimpleNamespace
 from google import genai
 import re
 from pprint import pprint
@@ -95,7 +96,10 @@ ipv4_pattern = re.compile(
 class NetNetty:
     def __init__(self, host) -> None:
         self.host = host
-        self.hostinfo = whois(host)
+        try:
+            self.hostinfo = whois.whois(host)
+        except whois.parser.PywhoisError:
+            self.hostinfo = SimpleNamespace(text="No whois info exists")
         if not bool(ipv4_pattern.match(host)):
             self.records = dict()
 

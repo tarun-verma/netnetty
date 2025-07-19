@@ -8,7 +8,6 @@ from typing import Dict, Any
 from types import SimpleNamespace
 from google import genai
 import re
-from pprint import pprint
 import dns.resolver
 
 # Set up gemini to generate summaries
@@ -16,7 +15,7 @@ client = genai.Client(api_key=os.getenv("GEMINI_KEY"))
 chat = client.chats.create(model="gemini-2.5-flash")
 
 # Set up the prompt to summarise whois data
-prompt = "Read all the interesting information from the following WHOIS text and present a concise (at most a few sentences) summary to me with just the relevant info and what you think about it. Text:"
+prompt = "Read all the interesting information from the following WHOIS text; present a three bullet point summary in short sentences about all the important info. Text:"
 
 record_types = {
     "NONE",
@@ -193,7 +192,9 @@ if __name__ == "__main__":
 
     if args.ip:
         information = NetNetty(args.ip)
-        pprint(information.get_info(), indent=4, sort_dicts=False)
+        whois_info = information.get_info()
+        for k in whois_info:
+            print(f"{k}: {whois_info[k]}")
     elif args.hostname:
         information = NetNetty(args.hostname)
         stop_animation = threading.Event()
@@ -204,7 +205,7 @@ if __name__ == "__main__":
         record_processing_thread.join()
         stop_animation.set()
 
-        print("\nLookup complete ✅\nHere are the records:")
+        print("\nLookup complete! ✅\n")
 
         if args.record:
             try:
@@ -215,6 +216,10 @@ if __name__ == "__main__":
                 print(f"No record found for {args.record} query!")
         if args.all:
             records = information.records
-            pprint(records, indent=4, sort_dicts=False)
+            for record in records:
+                print(f"{record}: {records[record]}")
     if args.summary:
-        pprint(information.llm_summary(), indent=4, sort_dicts=False)
+        points_list = information.llm_summary().split('\n')[-3:]
+        print("\nGemini generated summary:")
+        for points in points_list:
+            print(points)
